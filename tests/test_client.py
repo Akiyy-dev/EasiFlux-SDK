@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -30,7 +30,7 @@ def test_public_request_uses_official_default_base_url() -> None:
         def close(self) -> None:
             return None
 
-    sdk = EasiCoinSDK(session=SessionStub())
+    sdk = EasiCoinSDK(session=cast(Any, SessionStub()))
 
     response = sdk.get_ticker(symbol="BTCUSDT")
 
@@ -55,7 +55,7 @@ def test_private_request_adds_auth_headers_and_json_body() -> None:
         api_key="test-key",
         api_secret="test-secret",
         auto_sync_time=False,
-        session=SessionStub(),
+        session=cast(Any, SessionStub()),
     )
 
     sdk.create_order(

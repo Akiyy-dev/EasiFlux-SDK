@@ -14,7 +14,7 @@ from requests import Response, Session
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from .config import AuthConfig, DEFAULT_ENDPOINTS, ResponseConfig
+from .config import DEFAULT_ENDPOINTS, AuthConfig, ResponseConfig
 from .exceptions import (
     APIError,
     AuthenticationError,
@@ -67,7 +67,7 @@ class EasiCoinSDK:
     def close(self) -> None:
         self.session.close()
 
-    def __enter__(self) -> "EasiCoinSDK":
+    def __enter__(self) -> EasiCoinSDK:
         return self
 
     def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
