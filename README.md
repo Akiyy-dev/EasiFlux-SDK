@@ -150,7 +150,8 @@ fiat_rate = sdk.get_fiat_rate(["EUR", "JPY"])
 - CI 会在 push 和 pull request 上执行 `ruff check .`、`pytest -q` 和打包冒烟测试
 - 发布流程由 `vX.X.X` tag 触发，要求 tag 版本和 `pyproject.toml` 中的版本完全一致
 - Release workflow 会构建 wheel 和 sdist，并同时发布到 PyPI 与 GitHub Release
-- GitHub 官方当前支持的 GitHub Packages registry 列表不包含 Python registry，因此这里没有对 GitHub Packages 做 Python 包发布，改为把同一份构建产物附加到 GitHub Release
+- 校验文件 `SHA256SUMS.txt` 只会附加到 GitHub Release，不会上传到 PyPI
+- GitHub 官方当前支持的 GitHub Packages registry 列表不包含 Python registry，因此这里没有对 GitHub Packages 做 Python 包发布；发布成功后你会在 PyPI 页面和 GitHub Releases 页面看到产物，但不会在仓库的 Packages 页面看到 Python 包
 
 ## 未完成部分
 
