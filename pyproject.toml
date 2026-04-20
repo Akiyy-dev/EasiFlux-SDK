@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "easicoin-sdk"
-version = "0.1.1"
+name = "EasiFlux-SDK"
+version = "0.1.2"
 description = "Configurable Python SDK foundation for EasiCoin exchange integrations."
 readme = "README.md"
 requires-python = ">=3.10"
