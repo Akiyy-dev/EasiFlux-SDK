@@ -1,4 +1,4 @@
-# EasiCoin SDK
+# EasiFlux SDK
 
 这是一个为量化交易系统准备的 Python SDK 基础层，核心目标是干净、可靠、易维护，并把交易所特有的认证规则、响应格式和接口路径集中到可配置对象里。
 
@@ -8,6 +8,11 @@
 - 已实现合约市场、订单、账户、持仓、资金账户和法币汇率接口
 - 已实现异常体系、会话复用、重试和超时控制
 - 已内置官方 Base URL、默认端点和认证请求头
+
+## 包名说明（v0.2）
+
+- **推荐 import**：`easiflux_sdk`，主 Client 类为 `EasiFluxSDK`
+- **兼容 import**：`easicoin_sdk` / `EasiCoinSDK` 仍可用，但会触发 `DeprecationWarning`，将在 v1.0 移除
 
 ## 官方规则摘要
 
@@ -51,9 +56,9 @@ g:/EasiFlux/EasiFlux-SDK/.venv/Scripts/python.exe examples/basic_usage.py
 ## 快速开始
 
 ```python
-from easicoin_sdk import AuthConfig, EasiCoinSDK, ResponseConfig
+from easiflux_sdk import AuthConfig, EasiFluxSDK, ResponseConfig
 
-sdk = EasiCoinSDK(
+sdk = EasiFluxSDK(
     api_key="your-api-key",
     api_secret="your-api-secret",
     auth_config=AuthConfig(

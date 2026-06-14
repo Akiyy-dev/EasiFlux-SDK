@@ -4,7 +4,7 @@ from typing import Any, cast
 
 import pytest
 
-from easicoin_sdk import APIError, EasiCoinSDK
+from easiflux_sdk import APIError, EasiFluxSDK
 
 
 class DummyResponse:
@@ -30,7 +30,7 @@ def test_public_request_uses_official_default_base_url() -> None:
         def close(self) -> None:
             return None
 
-    sdk = EasiCoinSDK(session=cast(Any, SessionStub()))
+    sdk = EasiFluxSDK(session=cast(Any, SessionStub()))
 
     response = sdk.get_ticker(symbol="BTCUSDT")
 
@@ -51,7 +51,7 @@ def test_private_request_adds_auth_headers_and_json_body() -> None:
         def close(self) -> None:
             return None
 
-    sdk = EasiCoinSDK(
+    sdk = EasiFluxSDK(
         api_key="test-key",
         api_secret="test-secret",
         auto_sync_time=False,
@@ -78,7 +78,7 @@ def test_private_request_adds_auth_headers_and_json_body() -> None:
 
 
 def test_sync_time_updates_local_offset(monkeypatch: pytest.MonkeyPatch) -> None:
-    sdk = EasiCoinSDK(auto_sync_time=True)
+    sdk = EasiFluxSDK(auto_sync_time=True)
     target_server_time = 1_700_000_001_500
 
     monkeypatch.setattr(sdk, "get_server_time", lambda: {"code": 0, "data": {}, "time": target_server_time})
@@ -91,7 +91,7 @@ def test_sync_time_updates_local_offset(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_private_request_retries_once_on_timestamp_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    sdk = EasiCoinSDK(api_key="test-key", api_secret="test-secret")
+    sdk = EasiFluxSDK(api_key="test-key", api_secret="test-secret")
     sync_calls: list[bool] = []
     request_calls = 0
 
