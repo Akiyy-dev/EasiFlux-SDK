@@ -26,7 +26,7 @@ from .exceptions import (
 )
 
 
-class EasiCoinSDK:
+class EasiFluxSDK:
     """Synchronous SDK for the official EasiCoin REST API."""
 
     def __init__(
@@ -40,7 +40,7 @@ class EasiCoinSDK:
         response_config: ResponseConfig | None = None,
         timeout: float = 10.0,
         recv_window: int | None = 5000,
-        user_agent: str = "EasiCoinSDK/0.1.0",
+        user_agent: str = "EasiFluxSDK/0.2.0",
         auto_sync_time: bool = True,
         time_sync_interval: float = 30.0,
         session: Session | None = None,
@@ -67,7 +67,7 @@ class EasiCoinSDK:
     def close(self) -> None:
         self.session.close()
 
-    def __enter__(self) -> EasiCoinSDK:
+    def __enter__(self) -> EasiFluxSDK:
         return self
 
     def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:

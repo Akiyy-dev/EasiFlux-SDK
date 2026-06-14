@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from easicoin_sdk import AuthConfig, EasiCoinSDK, ResponseConfig
+from easiflux_sdk import AuthConfig, EasiFluxSDK, ResponseConfig
 
 
 def load_env_file(file_name: str = ".env.dev") -> None:
@@ -26,7 +26,7 @@ def main() -> None:
     symbol = os.getenv("EASICOIN_SYMBOL", "BTCUSDT")
     recv_window = int(os.getenv("EASICOIN_RECV_WINDOW", "5000"))
 
-    sdk = EasiCoinSDK(
+    sdk = EasiFluxSDK(
         api_key=api_key,
         api_secret=api_secret,
         base_url=base_url,
