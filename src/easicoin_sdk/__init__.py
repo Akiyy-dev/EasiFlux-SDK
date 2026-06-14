@@ -6,6 +6,7 @@ import warnings
 
 from easiflux_sdk import (
     APIError,
+    AsyncEasiFluxSDK,
     AuthConfig,
     AuthenticationError,
     ConfigurationError,
@@ -16,6 +17,7 @@ from easiflux_sdk import (
     ResponseConfig,
     ResponseParseError,
     SDKError,
+    SDKResponse,
 )
 
 _DEPRECATION_MESSAGE = (
@@ -26,9 +28,12 @@ _DEPRECATION_MESSAGE = (
 warnings.warn(_DEPRECATION_MESSAGE, DeprecationWarning, stacklevel=2)
 
 EasiCoinSDK = EasiFluxSDK
+AsyncEasiCoinSDK = AsyncEasiFluxSDK
 
 __all__ = [
     "APIError",
+    "AsyncEasiCoinSDK",
+    "AsyncEasiFluxSDK",
     "AuthConfig",
     "AuthenticationError",
     "ConfigurationError",
@@ -40,4 +45,5 @@ __all__ = [
     "ResponseConfig",
     "ResponseParseError",
     "SDKError",
+    "SDKResponse",
 ]
