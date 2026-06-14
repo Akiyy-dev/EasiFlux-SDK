@@ -9,6 +9,16 @@
 - 已实现异常体系、会话复用、重试和超时控制
 - 已内置官方 Base URL、默认端点和认证请求头
 
+## v0.2 新增能力
+
+- **Sync + Async**：`EasiFluxSDK` / `AsyncEasiFluxSDK`（httpx）
+- **数据模型**：`OrderRequest`、`OrderSide`、`OrderType` 等 dataclass
+- **统一响应**：`SDKResponse[T]`（`response_typed=True` 时启用）
+- **主动时间同步**：`sync_on_init=True` 启动时对时
+- **WebSocket 框架**：订阅/重连/事件（`client.ws.subscribe(...)`）
+- **事件系统**：`@client.on("order")` 装饰器（Async Client）
+- **结构化日志**：`configure_logging(debug=True)`
+
 ## 包名说明（v0.2）
 
 - **推荐 import**：`easiflux_sdk`，主 Client 类为 `EasiFluxSDK`
@@ -31,6 +41,7 @@
 ```bash
 pip install -e .
 pip install -e .[dev]
+pip install -e ".[dev,websocket]"
 ```
 
 ## 测试前配置
@@ -99,6 +110,45 @@ funding_balances = sdk.get_funding_balances()
 fiat_rate = sdk.get_fiat_rate(["EUR", "JPY"])
 ```
 
+### 异步 Client
+
+```python
+import asyncio
+from easiflux_sdk import AsyncEasiFluxSDK, OrderRequest, OrderSide, OrderType
+
+async def main() -> None:
+    async with AsyncEasiFluxSDK(api_key="...", api_secret="...") as client:
+        ticker = await client.get_ticker(symbol="BTCUSDT")
+        order = OrderRequest(
+            symbol="BTCUSDT",
+            side=OrderSide.BUY,
+            order_type=OrderType.LIMIT,
+            qty="0.001",
+            price="50000",
+        )
+        result = await client.create_order(order)
+
+asyncio.run(main())
+```
+
+完整示例见 [examples/async_usage.py](examples/async_usage.py)。
+
+### 类型化下单
+
+```python
+from easiflux_sdk import EasiFluxSDK, OrderRequest, OrderSide, OrderType, TimeInForce
+
+order = OrderRequest(
+    symbol="BTCUSDT",
+    side=OrderSide.BUY,
+    order_type=OrderType.LIMIT,
+    qty="0.001",
+    price="60000",
+    time_in_force=TimeInForce.GOOD_TILL_CANCEL,
+)
+sdk.create_order(order)  # 仍支持 dict 入参
+```
+
 ## 设计说明
 
 ### 1. 统一请求入口
@@ -160,6 +210,6 @@ fiat_rate = sdk.get_fiat_rate(["EUR", "JPY"])
 
 ## 未完成部分
 
-- WebSocket 尚未实现
+- WebSocket 频道报文格式需与官方文档进一步对齐（当前为可配置 adapter 框架）
 - 合约分类里还有部分高级仓位接口和订单扩展接口未封装
 - 目前没有真实账户联调测试，建议先用只读接口和测试仓位做烟雾验证

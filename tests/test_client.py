@@ -3,20 +3,10 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pytest
+from conftest import DummyResponse
 
 from easiflux_sdk import APIError, EasiFluxSDK
-
-
-class DummyResponse:
-    def __init__(self, payload: dict[str, Any], status_code: int = 200) -> None:
-        self._payload = payload
-        self.status_code = status_code
-        self.reason = "OK"
-        self.headers = {"Content-Type": "application/json"}
-        self.text = ""
-
-    def json(self) -> dict[str, Any]:
-        return self._payload
+from easiflux_sdk.core.auth import SignedComponents
 
 
 def test_public_request_uses_official_default_base_url() -> None:
@@ -30,7 +20,7 @@ def test_public_request_uses_official_default_base_url() -> None:
         def close(self) -> None:
             return None
 
-    sdk = EasiFluxSDK(session=cast(Any, SessionStub()))
+    sdk = EasiFluxSDK(session=cast(Any, SessionStub()), sync_on_init=False)
 
     response = sdk.get_ticker(symbol="BTCUSDT")
 
@@ -55,6 +45,7 @@ def test_private_request_adds_auth_headers_and_json_body() -> None:
         api_key="test-key",
         api_secret="test-secret",
         auto_sync_time=False,
+        sync_on_init=False,
         session=cast(Any, SessionStub()),
     )
 
@@ -78,7 +69,7 @@ def test_private_request_adds_auth_headers_and_json_body() -> None:
 
 
 def test_sync_time_updates_local_offset(monkeypatch: pytest.MonkeyPatch) -> None:
-    sdk = EasiFluxSDK(auto_sync_time=True)
+    sdk = EasiFluxSDK(auto_sync_time=True, sync_on_init=False)
     target_server_time = 1_700_000_001_500
 
     monkeypatch.setattr(sdk, "get_server_time", lambda: {"code": 0, "data": {}, "time": target_server_time})
@@ -91,19 +82,24 @@ def test_sync_time_updates_local_offset(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_private_request_retries_once_on_timestamp_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    sdk = EasiFluxSDK(api_key="test-key", api_secret="test-secret")
+    sdk = EasiFluxSDK(
+        api_key="test-key",
+        api_secret="test-secret",
+        auto_sync_time=False,
+        sync_on_init=False,
+    )
     sync_calls: list[bool] = []
     request_calls = 0
 
     monkeypatch.setattr(sdk, "sync_time", lambda force=False: sync_calls.append(force) or 0)
 
-    def fake_prepare(*args: Any, **kwargs: Any) -> dict[str, Any]:
-        return {
-            "params": {},
-            "json_body": {},
-            "body_text": None,
-            "headers": {},
-        }
+    def fake_prepare(*args: Any, **kwargs: Any) -> SignedComponents:
+        return SignedComponents(
+            headers={},
+            params={},
+            json_body={},
+            body_text=None,
+        )
 
     def fake_request(*args: Any, **kwargs: Any) -> dict[str, Any]:
         nonlocal request_calls
@@ -119,4 +115,4 @@ def test_private_request_retries_once_on_timestamp_error(monkeypatch: pytest.Mon
 
     assert response["code"] == 0
     assert request_calls == 2
-    assert sync_calls == [False, True]
+    assert sync_calls == [True]
