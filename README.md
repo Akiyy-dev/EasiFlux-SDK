@@ -1,15 +1,35 @@
 # EasiFlux SDK
 
-这是一个为量化交易系统准备的 Python SDK 基础层，核心目标是干净、可靠、易维护，并把交易所特有的认证规则、响应格式和接口路径集中到可配置对象里。
+EasiFlux SDK（`easiflux_sdk`）是为量化交易与桌面客户端准备的 Python SDK，封装 [EasiCoin](https://api.easicoin.io) 交易所 REST / WebSocket API。v0.2 起包名、主 Client 类名已统一为 **EasiFlux** 系列；旧名 `easicoin_sdk` 仅作兼容 shim。
 
-当前版本已经根据你提供的 EasiCoin 官方文档落成了同步 REST SDK 基础层，默认配置直接对齐官方规则：
+## 命名规范
 
-- 已实现统一请求入口和签名请求入口
+| 用途 | 名称 | 说明 |
+|------|------|------|
+| PyPI 安装包 | `EasiFlux-SDK` | `pip install EasiFlux-SDK` |
+| Python import | `easiflux_sdk` | **推荐**，所有新代码应使用此包名 |
+| 同步 Client | `EasiFluxSDK` | 主入口类 |
+| 异步 Client | `AsyncEasiFluxSDK` | httpx 驱动 |
+| 兼容 import（deprecated） | `easicoin_sdk` / `EasiCoinSDK` | v0.2–v0.3 可用，import 时触发 `DeprecationWarning`，v1.0 移除 |
+
+```python
+# 推荐写法
+from easiflux_sdk import EasiFluxSDK, AsyncEasiFluxSDK
+
+# 旧写法（仍可用，不推荐）
+from easicoin_sdk import EasiCoinSDK  # = EasiFluxSDK
+```
+
+## 功能概览
+
+当前版本默认配置对齐 EasiCoin 官方规则：
+
+- 已实现统一请求入口和签名请求入口（Sync + Async）
 - 已实现合约市场、订单、账户、持仓、资金账户和法币汇率接口
 - 已实现异常体系、会话复用、重试和超时控制
 - 已内置官方 Base URL、默认端点和认证请求头
 
-## v0.2 新增能力
+### v0.2 新增
 
 - **Sync + Async**：`EasiFluxSDK` / `AsyncEasiFluxSDK`（httpx）
 - **数据模型**：`OrderRequest`、`OrderSide`、`OrderType` 等 dataclass
@@ -18,11 +38,6 @@
 - **WebSocket 框架**：订阅/重连/事件（`client.ws.subscribe(...)`）
 - **事件系统**：`@client.on("order")` 装饰器（Async Client）
 - **结构化日志**：`configure_logging(debug=True)`
-
-## 包名说明（v0.2）
-
-- **推荐 import**：`easiflux_sdk`，主 Client 类为 `EasiFluxSDK`
-- **兼容 import**：`easicoin_sdk` / `EasiCoinSDK` 仍可用，但会触发 `DeprecationWarning`，将在 v1.0 移除
 
 ## 官方规则摘要
 
@@ -39,9 +54,10 @@
 ## 安装
 
 ```bash
-pip install -e .
-pip install -e .[dev]
-pip install -e ".[dev,websocket]"
+pip install EasiFlux-SDK          # PyPI
+pip install -e .                  # 本地开发
+pip install -e ".[dev]"           # 含测试/ lint 工具
+pip install -e ".[dev,websocket]" # 含 WebSocket 依赖
 ```
 
 ## 测试前配置
@@ -56,12 +72,13 @@ EASICOIN_SYMBOL=BTCUSDT
 EASICOIN_RECV_WINDOW=5000
 ```
 
-示例脚本 [examples/basic_usage.py](examples/basic_usage.py) 会自动读取项目根目录下的 .env.dev。
+示例脚本 [examples/basic_usage.py](examples/basic_usage.py)（同步）和 [examples/async_usage.py](examples/async_usage.py)（异步）会自动读取项目根目录下的 `.env.dev`。
 
 运行方式：
 
 ```bash
-g:/EasiFlux/EasiFlux-SDK/.venv/Scripts/python.exe examples/basic_usage.py
+.venv/bin/python examples/basic_usage.py
+.venv/bin/python examples/async_usage.py
 ```
 
 ## 快速开始
@@ -150,6 +167,8 @@ sdk.create_order(order)  # 仍支持 dict 入参
 ```
 
 ## 设计说明
+
+源码目录：`src/easiflux_sdk/`（`core/`、`models/`、`transport/`、`websocket/` 子包）。
 
 ### 1. 统一请求入口
 
