@@ -1,54 +1,55 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from ..core.auth import Signer
-from ..core.time_sync import TimeSyncManager
 
-PRIVATE_CHANNELS = {"order", "position", "balance"}
+PRIVATE_TOPICS = {
+    "contract.position",
+    "contract.order",
+    "contract.execution",
+    "contract.wallet",
+}
+
+# Legacy channel names mapped to official topics.
+LEGACY_PRIVATE_CHANNELS = {
+    "position": "contract.position",
+    "order": "contract.order",
+    "execution": "contract.execution",
+    "balance": "contract.wallet",
+}
 
 
-def build_private_auth_message(
-    *,
-    signer: Signer,
-    time_sync: TimeSyncManager,
-) -> dict[str, Any]:
-    timestamp = str(time_sync.get_timestamp())
-    signature = signer.sign(f"{timestamp}{signer.api_key}")
+def build_private_auth_message(*, signer: Signer, expires_ms: int | None = None) -> dict[str, Any]:
+    signer.ensure_credentials()
+    expires = expires_ms if expires_ms is not None else int((time.time() + 60) * 1000)
+    signature = signer.sign_ws_auth(expires)
     return {
         "op": "auth",
-        "args": {
-            "api_key": signer.api_key,
-            "timestamp": timestamp,
-            "sign": signature,
-        },
+        "args": [signer.api_key, expires, signature],
     }
 
 
-def build_private_subscribe_message(channel: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-    return {
-        "op": "subscribe",
-        "channel": channel,
-        "args": params or {},
-    }
+def resolve_private_topic(channel: str, _params: dict[str, Any] | None = None) -> str:
+    if channel in PRIVATE_TOPICS:
+        return channel
+    if channel in LEGACY_PRIVATE_CHANNELS:
+        return LEGACY_PRIVATE_CHANNELS[channel]
+    raise ValueError(f"Unsupported private channel: {channel}")
 
 
 async def authenticate_private(
     send: Callable[[dict[str, Any]], Awaitable[None]],
     *,
     signer: Signer,
-    time_sync: TimeSyncManager,
 ) -> None:
-    signer.ensure_credentials()
-    await send(build_private_auth_message(signer=signer, time_sync=time_sync))
+    await send(build_private_auth_message(signer=signer))
 
 
-async def subscribe_private(
+async def subscribe_private_topics(
     send: Callable[[dict[str, Any]], Awaitable[None]],
-    channel: str,
-    params: dict[str, Any] | None = None,
+    *topics: str,
 ) -> None:
-    if channel not in PRIVATE_CHANNELS:
-        raise ValueError(f"Unsupported private channel: {channel}")
-    await send(build_private_subscribe_message(channel, params))
+    await send({"op": "subscribe", "args": list(topics)})

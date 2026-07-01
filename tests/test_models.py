@@ -59,6 +59,7 @@ def test_create_order_accepts_order_request() -> None:
         order_type=OrderType.LIMIT,
         qty="0.001",
         price="50000",
+        position_idx=1,
     )
     sdk.create_order(request)
 

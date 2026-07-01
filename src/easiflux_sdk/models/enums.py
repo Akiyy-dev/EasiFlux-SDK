@@ -17,3 +17,30 @@ class TimeInForce(str, Enum):
     GOOD_TILL_CANCEL = "GoodTillCancel"
     IMMEDIATE_OR_CANCEL = "ImmediateOrCancel"
     FILL_OR_KILL = "FillOrKill"
+    POST_ONLY = "PostOnly"
+
+
+class StopOrderType(str, Enum):
+    STOP = "Stop"
+
+
+class ExecType(str, Enum):
+    TRADE = "Trade"
+    ADL_TRADE = "AdlTrade"
+    FUNDING = "Funding"
+    BUST_TRADE = "BustTrade"
+
+
+class MarginMode(str, Enum):
+    CROSS = "Cross"
+    ISOLATED = "Isolated"
+
+
+class PositionMode(str, Enum):
+    SEPARATE = "Separate"
+    MERGED = "Merged"
+
+
+class TpSlMode(str, Enum):
+    FULL = "Full"
+    PARTIAL = "Partial"

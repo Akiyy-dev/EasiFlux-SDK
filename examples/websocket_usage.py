@@ -36,8 +36,8 @@ async def main() -> None:
         async def on_ticker(event: dict) -> None:
             print("ticker event:", event)
 
-        await client.ws.subscribe("ticker", {"symbol": symbol}, callback=on_ticker)
-        print("Subscribed to ticker; waiting for events (Ctrl+C to exit)...")
+        await client.ws.subscribe_ticker(symbol, callback=on_ticker)
+        print("Subscribed to tickers-100; waiting for events (Ctrl+C to exit)...")
 
         try:
             while True:
