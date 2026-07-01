@@ -6,6 +6,12 @@ from typing import Any
 from .serialization import clean_mapping
 
 
+def _payload_from(value: Mapping[str, Any] | Any) -> dict[str, Any]:
+    if hasattr(value, "to_api_payload"):
+        return clean_mapping(value.to_api_payload())
+    return clean_mapping(value)
+
+
 def build_ticker_params(
     *,
     symbol: str | None = None,
@@ -43,6 +49,25 @@ def build_kline_params(
     return request_params
 
 
+def build_mark_price_kline_params(
+    *,
+    symbol: str,
+    interval: str,
+    limit: int | None = None,
+    start: int | None = None,
+    end: int | None = None,
+    params: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    return build_kline_params(
+        symbol=symbol,
+        interval=interval,
+        limit=limit,
+        start=start,
+        end=end,
+        params=params,
+    )
+
+
 def build_depth_params(
     *,
     symbol: str,
@@ -59,6 +84,59 @@ def build_depth_params(
     return request_params
 
 
+def build_public_trades_params(
+    *,
+    symbol: str,
+    limit: int | None = None,
+    params: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    request_params = dict(params or {})
+    request_params["symbol"] = symbol
+    if limit is not None:
+        request_params["limit"] = limit
+    return request_params
+
+
+def build_funding_rate_history_params(
+    *,
+    symbol: str,
+    from_time: int | None = None,
+    to_time: int | None = None,
+    limit: int | None = None,
+    params: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    request_params = dict(params or {})
+    request_params["symbol"] = symbol
+    if from_time is not None:
+        request_params["from"] = from_time
+    if to_time is not None:
+        request_params["to"] = to_time
+    if limit is not None:
+        request_params["limit"] = limit
+    return request_params
+
+
+def build_instruments_params(
+    *,
+    symbol: str | None = None,
+    params: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    request_params = dict(params or {})
+    if symbol is not None:
+        request_params["symbol"] = symbol
+    return request_params
+
+
+def build_risk_limit_params(
+    *,
+    symbol: str,
+    params: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    request_params = dict(params or {})
+    request_params["symbol"] = symbol
+    return request_params
+
+
 def build_order_query_params(
     *,
     symbol: str | None = None,
@@ -68,6 +146,9 @@ def build_order_query_params(
     order_filter: str | None = None,
     limit: int | None = None,
     cursor: str | None = None,
+    start_time: int | None = None,
+    end_time: int | None = None,
+    exec_type: str | None = None,
     params: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     request_params = dict(params or {})
@@ -85,6 +166,59 @@ def build_order_query_params(
         request_params["limit"] = limit
     if cursor is not None:
         request_params["cursor"] = cursor
+    if start_time is not None:
+        request_params["start_time"] = start_time
+    if end_time is not None:
+        request_params["end_time"] = end_time
+    if exec_type is not None:
+        request_params["exec_type"] = exec_type
+    return request_params
+
+
+def build_closed_pnl_params(
+    *,
+    symbol: str | None = None,
+    coin: str | None = None,
+    start_time: int | None = None,
+    end_time: int | None = None,
+    limit: int | None = None,
+    cursor: str | None = None,
+    params: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    request_params = dict(params or {})
+    if symbol is not None:
+        request_params["symbol"] = symbol
+    if coin is not None:
+        request_params["coin"] = coin
+    if start_time is not None:
+        request_params["start_time"] = start_time
+    if end_time is not None:
+        request_params["end_time"] = end_time
+    if limit is not None:
+        request_params["limit"] = limit
+    if cursor is not None:
+        request_params["cursor"] = cursor
+    return request_params
+
+
+def build_transfer_history_params(
+    *,
+    start_time: int,
+    end_time: int,
+    coin: str | None = None,
+    page_num: int | None = None,
+    page_size: int | None = None,
+    params: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    request_params = dict(params or {})
+    request_params["start_time"] = start_time
+    request_params["end_time"] = end_time
+    if coin is not None:
+        request_params["coin"] = coin
+    if page_num is not None:
+        request_params["page_num"] = page_num
+    if page_size is not None:
+        request_params["page_size"] = page_size
     return request_params
 
 
@@ -122,12 +256,20 @@ def build_transfer_payload(
 
 
 def build_create_order_payload(order: Mapping[str, Any] | Any) -> dict[str, Any]:
-    if hasattr(order, "to_api_payload"):
-        return clean_mapping(order.to_api_payload())
-    return clean_mapping(order)
+    return _payload_from(order)
 
 
 def build_cancel_order_payload(order_query: Mapping[str, Any] | Any) -> dict[str, Any]:
-    if hasattr(order_query, "to_api_payload"):
-        return clean_mapping(order_query.to_api_payload())
-    return clean_mapping(order_query)
+    return _payload_from(order_query)
+
+
+def build_replace_order_payload(order: Mapping[str, Any] | Any) -> dict[str, Any]:
+    return _payload_from(order)
+
+
+def build_cancel_all_orders_payload(query: Mapping[str, Any] | Any) -> dict[str, Any]:
+    return _payload_from(query)
+
+
+def build_position_write_payload(payload: Mapping[str, Any] | Any) -> dict[str, Any]:
+    return _payload_from(payload)

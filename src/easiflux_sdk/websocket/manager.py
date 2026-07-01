@@ -5,19 +5,30 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from ..config import AuthConfig
+from ..config import DEFAULT_WS_URLS, AuthConfig
 from ..core.auth import Signer
 from ..core.events import EventEmitter
 from ..core.logging import get_logger
 from ..core.time_sync import TimeSyncManager
 from .client import WebSocketClient
-from .private import PRIVATE_CHANNELS, authenticate_private, subscribe_private
-from .public import subscribe_public
+from .private import PRIVATE_TOPICS, authenticate_private, subscribe_private
+from .public import build_ping_message, subscribe_public
 from .reconnect import ReconnectPolicy
 
 logger = get_logger(__name__)
 
 Callback = Callable[[dict[str, Any]], Awaitable[None] | None]
+
+_LEGACY_CHANNEL_ALIASES = {
+    "tickers-100": "ticker",
+    "ob_snap_shot": "depth",
+    "trades-100": "trades",
+    "contract.position": "position",
+    "contract.order": "order",
+    "contract.execution": "execution",
+    "contract.wallet": "wallet",
+    "candle": "candle",
+}
 
 
 @dataclass
@@ -32,7 +43,9 @@ class WebSocketManager:
     def __init__(
         self,
         *,
-        ws_url: str,
+        ws_public_url: str | None = None,
+        ws_private_url: str | None = None,
+        ws_url: str | None = None,
         api_key: str,
         api_secret: str,
         auth_config: AuthConfig,
@@ -41,24 +54,38 @@ class WebSocketManager:
         events: EventEmitter,
         reconnect_policy: ReconnectPolicy | None = None,
     ) -> None:
-        self.ws_url = ws_url
+        if ws_url is not None and ws_public_url is None:
+            ws_public_url = ws_url
+
+        self.ws_public_url = ws_public_url or DEFAULT_WS_URLS["contract_public"]
+        self.ws_private_url = ws_private_url or DEFAULT_WS_URLS["contract_private"]
         self.api_key = api_key
         self.api_secret = api_secret
         self.auth_config = auth_config
         self.signer = signer
         self.time_sync = time_sync
         self.events = events
-        self.reconnect_policy = reconnect_policy or ReconnectPolicy()
+        self.reconnect_policy = reconnect_policy or ReconnectPolicy(heartbeat_interval=15.0)
 
-        self._client = WebSocketClient(ws_url)
+        self._public_client = WebSocketClient(self.ws_public_url)
+        self._private_client = WebSocketClient(self.ws_private_url)
         self._subscriptions: list[Subscription] = []
         self._authenticated = False
         self._monitor_task: asyncio.Task[None] | None = None
-        self._client.add_handler(self._dispatch_message)
+        self._heartbeat_task: asyncio.Task[None] | None = None
+
+        self._public_client.add_handler(self._dispatch_message)
+        self._private_client.add_handler(self._dispatch_message)
 
     async def connect(self) -> None:
-        await self._client.connect()
+        await self._public_client.connect()
+        if self._has_private_subscriptions():
+            await self._private_client.connect()
+            await authenticate_private(self._private_client.send, signer=self.signer)
+            self._authenticated = True
+
         self._monitor_task = asyncio.create_task(self._monitor_connection())
+        self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         await self._restore_subscriptions()
 
     async def subscribe(
@@ -69,45 +96,80 @@ class WebSocketManager:
         callback: Callback | None = None,
     ) -> None:
         params = params or {}
-        private = channel in PRIVATE_CHANNELS
+        private = channel in PRIVATE_TOPICS or channel.startswith("contract.")
         subscription = Subscription(channel=channel, params=params, callback=callback, private=private)
         self._subscriptions.append(subscription)
 
-        if not self._client.connected:
+        if not self._public_client.connected:
             await self.connect()
             return
 
         await self._apply_subscription(subscription)
 
     async def close(self) -> None:
-        if self._monitor_task is not None:
-            self._monitor_task.cancel()
-            try:
-                await self._monitor_task
-            except asyncio.CancelledError:
-                pass
-            self._monitor_task = None
-        await self._client.close()
+        for task in (self._monitor_task, self._heartbeat_task):
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        self._monitor_task = None
+        self._heartbeat_task = None
+        await self._public_client.close()
+        await self._private_client.close()
+
+    def _has_private_subscriptions(self) -> bool:
+        return any(sub.private for sub in self._subscriptions)
 
     async def _apply_subscription(self, subscription: Subscription) -> None:
         if subscription.private:
+            if not self._private_client.connected:
+                await self._private_client.connect()
             if not self._authenticated:
-                await authenticate_private(self._client.send, signer=self.signer, time_sync=self.time_sync)
+                await authenticate_private(self._private_client.send, signer=self.signer)
                 self._authenticated = True
-            await subscribe_private(self._client.send, subscription.channel, subscription.params)
+            await subscribe_private(
+                self._private_client.send,
+                subscription.channel,
+                subscription.params,
+            )
         else:
-            await subscribe_public(self._client.send, subscription.channel, subscription.params)
+            if not self._public_client.connected:
+                await self._public_client.connect()
+            await subscribe_public(
+                self._public_client.send,
+                subscription.channel,
+                subscription.params,
+            )
 
     async def _restore_subscriptions(self) -> None:
         self._authenticated = False
         for subscription in self._subscriptions:
             await self._apply_subscription(subscription)
 
+    async def _heartbeat_loop(self) -> None:
+        while True:
+            await asyncio.sleep(self.reconnect_policy.heartbeat_interval)
+            ping = build_ping_message()
+            if self._public_client.connected:
+                try:
+                    await self._public_client.send(ping)
+                except Exception as exc:
+                    logger.debug("Public WebSocket ping failed: %s", exc)
+            if self._private_client.connected:
+                try:
+                    await self._private_client.send(ping)
+                except Exception as exc:
+                    logger.debug("Private WebSocket ping failed: %s", exc)
+
     async def _monitor_connection(self) -> None:
         attempt = 0
         while True:
             await asyncio.sleep(self.reconnect_policy.heartbeat_interval)
-            if self._client.connected:
+            public_ok = self._public_client.connected
+            private_ok = not self._has_private_subscriptions() or self._private_client.connected
+            if public_ok and private_ok:
                 attempt = 0
                 continue
 
@@ -121,27 +183,44 @@ class WebSocketManager:
             attempt += 1
 
             try:
-                await self._client.connect()
+                if not public_ok:
+                    await self._public_client.connect()
+                if self._has_private_subscriptions() and not private_ok:
+                    await self._private_client.connect()
                 await self._restore_subscriptions()
                 attempt = 0
             except Exception as exc:
                 logger.debug("WebSocket reconnect failed: %s", exc)
 
+    def _resolve_event_name(self, topic: str) -> str:
+        if topic in _LEGACY_CHANNEL_ALIASES:
+            return _LEGACY_CHANNEL_ALIASES[topic]
+        if "." in topic:
+            prefix = topic.split(".", 1)[0]
+            if prefix in _LEGACY_CHANNEL_ALIASES:
+                return _LEGACY_CHANNEL_ALIASES[prefix]
+        return topic
+
     async def _dispatch_message(self, message: dict[str, Any]) -> None:
-        channel = str(message.get("channel") or message.get("topic") or "")
-        if channel:
-            event_name = channel.split(".")[0] if "." in channel else channel
+        topic = str(message.get("topic") or message.get("channel") or "")
+        if topic:
+            event_name = self._resolve_event_name(topic)
             await self.events.emit(event_name, message)
             await self.events.emit("market", message)
 
         for subscription in self._subscriptions:
             if subscription.callback is None:
                 continue
-            if channel and subscription.channel not in channel:
-                continue
+            if topic and subscription.channel not in topic and topic not in subscription.channel:
+                if not (
+                    subscription.channel == "balance"
+                    and topic == "contract.wallet"
+                ):
+                    continue
             result = subscription.callback(message)
             if asyncio.iscoroutine(result):
                 await result
 
-            if subscription.channel in {"order", "position", "balance"}:
-                await self.events.emit(subscription.channel, message)
+            legacy = self._resolve_event_name(topic) if topic else subscription.channel
+            if legacy in {"order", "position", "wallet", "balance", "execution"}:
+                await self.events.emit(legacy, message)

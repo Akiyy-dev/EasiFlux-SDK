@@ -9,13 +9,23 @@ from requests import Session
 from .config import DEFAULT_ENDPOINTS, AuthConfig, ResponseConfig
 from .core.auth import Signer
 from .core.operations import (
+    build_cancel_all_orders_payload,
     build_cancel_order_payload,
+    build_closed_pnl_params,
     build_create_order_payload,
     build_depth_params,
     build_fiat_rate_params,
+    build_funding_rate_history_params,
+    build_instruments_params,
     build_kline_params,
+    build_mark_price_kline_params,
     build_order_query_params,
+    build_position_write_payload,
+    build_public_trades_params,
+    build_replace_order_payload,
+    build_risk_limit_params,
     build_ticker_params,
+    build_transfer_history_params,
     build_transfer_payload,
 )
 from .core.response_handler import ResponseHandler
@@ -40,7 +50,7 @@ class EasiFluxSDK:
         response_config: ResponseConfig | None = None,
         timeout: float = 10.0,
         recv_window: int | None = 5000,
-        user_agent: str = "EasiFluxSDK/0.2.0",
+        user_agent: str = "EasiFluxSDK/0.3.0",
         auto_sync_time: bool = True,
         time_sync_interval: float = 30.0,
         sync_on_init: bool = True,
@@ -158,6 +168,88 @@ class EasiFluxSDK:
         request_params = build_depth_params(symbol=symbol, depth=depth, limit=limit, params=params)
         return self._request("GET", self._resolve_endpoint("depth", path), params=request_params)
 
+    def get_public_trades(
+        self,
+        symbol: str,
+        *,
+        limit: int | None = None,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        request_params = build_public_trades_params(symbol=symbol, limit=limit, params=params)
+        return self._request("GET", self._resolve_endpoint("public_trades", path), params=request_params)
+
+    def get_funding_rate_history(
+        self,
+        symbol: str,
+        *,
+        from_time: int | None = None,
+        to_time: int | None = None,
+        limit: int | None = None,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        request_params = build_funding_rate_history_params(
+            symbol=symbol,
+            from_time=from_time,
+            to_time=to_time,
+            limit=limit,
+            params=params,
+        )
+        return self._request(
+            "GET",
+            self._resolve_endpoint("funding_rate_history", path),
+            params=request_params,
+        )
+
+    def get_mark_price_kline(
+        self,
+        symbol: str,
+        interval: str,
+        *,
+        limit: int | None = None,
+        start: int | None = None,
+        end: int | None = None,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        request_params = build_mark_price_kline_params(
+            symbol=symbol,
+            interval=interval,
+            limit=limit,
+            start=start,
+            end=end,
+            params=params,
+        )
+        return self._request(
+            "GET",
+            self._resolve_endpoint("mark_price_kline", path),
+            params=request_params,
+        )
+
+    def get_instruments(
+        self,
+        *,
+        symbol: str | None = None,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        request_params = build_instruments_params(symbol=symbol, params=params)
+        return self._request("GET", self._resolve_endpoint("instruments", path), params=request_params)
+
+    def get_risk_limit(
+        self,
+        symbol: str,
+        *,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        request_params = build_risk_limit_params(symbol=symbol, params=params)
+        return self._request("GET", self._resolve_endpoint("risk_limit", path), params=request_params)
+
+    def get_market_close_time(self, *, path: str | None = None) -> Any:
+        return self._request("GET", self._resolve_endpoint("market_close_time", path))
+
     def get_trading_fee_rate(
         self,
         *,
@@ -195,6 +287,36 @@ class EasiFluxSDK:
         return self._private_write(
             "POST",
             self._resolve_endpoint("cancel_order", path),
+            payload=payload,
+            use_json=use_json,
+        )
+
+    def cancel_all_orders(
+        self,
+        order_query: Mapping[str, Any] | Any,
+        *,
+        path: str | None = None,
+        use_json: bool = True,
+    ) -> Any:
+        payload = build_cancel_all_orders_payload(order_query)
+        return self._private_write(
+            "POST",
+            self._resolve_endpoint("cancel_all_orders", path),
+            payload=payload,
+            use_json=use_json,
+        )
+
+    def replace_order(
+        self,
+        order: Mapping[str, Any] | Any,
+        *,
+        path: str | None = None,
+        use_json: bool = True,
+    ) -> Any:
+        payload = build_replace_order_payload(order)
+        return self._private_write(
+            "POST",
+            self._resolve_endpoint("replace_order", path),
             payload=payload,
             use_json=use_json,
         )
@@ -282,6 +404,37 @@ class EasiFluxSDK:
             params=request_params,
         )
 
+    def get_trade_fills(
+        self,
+        *,
+        symbol: str | None = None,
+        coin: str | None = None,
+        order_id: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        exec_type: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        request_params = build_order_query_params(
+            symbol=symbol,
+            coin=coin,
+            order_id=order_id,
+            start_time=start_time,
+            end_time=end_time,
+            exec_type=exec_type,
+            limit=limit,
+            cursor=cursor,
+            params=params,
+        )
+        return self._signed_request(
+            "GET",
+            self._resolve_endpoint("trade_fills", path),
+            params=request_params,
+        )
+
     def get_balances(
         self,
         *,
@@ -309,6 +462,138 @@ class EasiFluxSDK:
             "GET",
             self._resolve_endpoint("positions", path),
             params=request_params,
+        )
+
+    def set_leverage(
+        self,
+        payload: Mapping[str, Any] | Any,
+        *,
+        path: str | None = None,
+        use_json: bool = True,
+    ) -> Any:
+        body = build_position_write_payload(payload)
+        return self._private_write(
+            "POST",
+            self._resolve_endpoint("set_leverage", path),
+            payload=body,
+            use_json=use_json,
+        )
+
+    def add_margin(
+        self,
+        payload: Mapping[str, Any] | Any,
+        *,
+        path: str | None = None,
+        use_json: bool = True,
+    ) -> Any:
+        body = build_position_write_payload(payload)
+        return self._private_write(
+            "POST",
+            self._resolve_endpoint("add_margin", path),
+            payload=body,
+            use_json=use_json,
+        )
+
+    def close_all_positions(
+        self,
+        payload: Mapping[str, Any] | Any | None = None,
+        *,
+        path: str | None = None,
+        use_json: bool = True,
+    ) -> Any:
+        body = build_position_write_payload(payload or {})
+        return self._private_write(
+            "POST",
+            self._resolve_endpoint("close_all_positions", path),
+            payload=body,
+            use_json=use_json,
+        )
+
+    def get_closed_pnl(
+        self,
+        *,
+        symbol: str | None = None,
+        coin: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        request_params = build_closed_pnl_params(
+            symbol=symbol,
+            coin=coin,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            cursor=cursor,
+            params=params,
+        )
+        return self._signed_request(
+            "GET",
+            self._resolve_endpoint("closed_pnl", path),
+            params=request_params,
+        )
+
+    def create_tpsl(
+        self,
+        payload: Mapping[str, Any] | Any,
+        *,
+        path: str | None = None,
+        use_json: bool = True,
+    ) -> Any:
+        body = build_position_write_payload(payload)
+        return self._private_write(
+            "POST",
+            self._resolve_endpoint("create_tpsl", path),
+            payload=body,
+            use_json=use_json,
+        )
+
+    def replace_tpsl(
+        self,
+        payload: Mapping[str, Any] | Any,
+        *,
+        path: str | None = None,
+        use_json: bool = True,
+    ) -> Any:
+        body = build_position_write_payload(payload)
+        return self._private_write(
+            "POST",
+            self._resolve_endpoint("replace_tpsl", path),
+            payload=body,
+            use_json=use_json,
+        )
+
+    def switch_margin_mode(
+        self,
+        payload: Mapping[str, Any] | Any,
+        *,
+        path: str | None = None,
+        use_json: bool = True,
+    ) -> Any:
+        body = build_position_write_payload(payload)
+        return self._private_write(
+            "POST",
+            self._resolve_endpoint("switch_margin_mode", path),
+            payload=body,
+            use_json=use_json,
+        )
+
+    def switch_separate_position_mode(
+        self,
+        payload: Mapping[str, Any] | Any,
+        *,
+        path: str | None = None,
+        use_json: bool = True,
+    ) -> Any:
+        body = build_position_write_payload(payload)
+        return self._private_write(
+            "POST",
+            self._resolve_endpoint("switch_separate_mode", path),
+            payload=body,
+            use_json=use_json,
         )
 
     def public_request(
@@ -357,6 +642,34 @@ class EasiFluxSDK:
     ) -> Any:
         request_params = build_fiat_rate_params(symbol_list=symbol_list, params=params)
         return self._request("GET", self._resolve_endpoint("fiat_rate", path), params=request_params)
+
+    def get_user_id(self, *, path: str | None = None) -> Any:
+        return self._signed_request("GET", self._resolve_endpoint("user_id", path))
+
+    def get_transfer_history(
+        self,
+        *,
+        start_time: int,
+        end_time: int,
+        coin: str | None = None,
+        page_num: int | None = None,
+        page_size: int | None = None,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        request_params = build_transfer_history_params(
+            start_time=start_time,
+            end_time=end_time,
+            coin=coin,
+            page_num=page_num,
+            page_size=page_size,
+            params=params,
+        )
+        return self._signed_request(
+            "GET",
+            self._resolve_endpoint("transfer_history", path),
+            params=request_params,
+        )
 
     def private_request(
         self,

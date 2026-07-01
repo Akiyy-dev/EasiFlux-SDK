@@ -116,3 +116,45 @@ def test_private_request_retries_once_on_timestamp_error(monkeypatch: pytest.Mon
     assert response["code"] == 0
     assert request_calls == 2
     assert sync_calls == [True]
+
+
+def test_get_public_trades_uses_official_path() -> None:
+    captured: dict[str, Any] = {}
+
+    class SessionStub:
+        def request(self, **kwargs: Any) -> DummyResponse:
+            captured.update(kwargs)
+            return DummyResponse({"code": 0, "message": "success", "data": {}})
+
+        def close(self) -> None:
+            return None
+
+    sdk = EasiFluxSDK(session=cast(Any, SessionStub()), sync_on_init=False)
+    sdk.get_public_trades("BTCUSDT", limit=10)
+
+    assert captured["url"] == "https://api.easicoin.io/futures/public/v1/market/trades"
+    assert captured["params"] == {"symbol": "BTCUSDT", "limit": 10}
+
+
+def test_cancel_all_orders_posts_to_official_path() -> None:
+    captured: dict[str, Any] = {}
+
+    class SessionStub:
+        def request(self, **kwargs: Any) -> DummyResponse:
+            captured.update(kwargs)
+            return DummyResponse({"code": 0, "message": "success", "data": {}})
+
+        def close(self) -> None:
+            return None
+
+    sdk = EasiFluxSDK(
+        api_key="test-key",
+        api_secret="test-secret",
+        auto_sync_time=False,
+        sync_on_init=False,
+        session=cast(Any, SessionStub()),
+    )
+    sdk.cancel_all_orders({"coin": "USDT", "order_filter": "All"})
+
+    assert captured["method"] == "POST"
+    assert captured["url"] == "https://api.easicoin.io/futures/private/v1/cancel-all-orders"

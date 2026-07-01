@@ -83,6 +83,10 @@ class Signer:
             return base64.b64encode(digest).decode("utf-8")
         return digest.hex()
 
+    def sign_ws_auth(self, expires_ms: int) -> str:
+        self.ensure_credentials()
+        return self.sign(f"GET/realtime{expires_ms}")
+
     def ensure_credentials(self) -> None:
         if not self.api_key:
             raise ConfigurationError("api_key is required for private requests.")
