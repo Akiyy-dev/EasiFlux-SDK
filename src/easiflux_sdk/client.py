@@ -11,19 +11,16 @@ from .core.auth import Signer
 from .core.operations import (
     build_cancel_all_orders_payload,
     build_cancel_order_payload,
-    build_closed_pnl_params,
     build_create_order_payload,
     build_depth_params,
     build_fiat_rate_params,
     build_funding_rate_history_params,
     build_instruments_params,
     build_kline_params,
-    build_mark_price_kline_params,
     build_order_query_params,
-    build_position_write_payload,
+    build_position_payload,
     build_public_trades_params,
     build_replace_order_payload,
-    build_risk_limit_params,
     build_ticker_params,
     build_transfer_history_params,
     build_transfer_payload,
@@ -213,7 +210,7 @@ class EasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
-        request_params = build_mark_price_kline_params(
+        request_params = build_kline_params(
             symbol=symbol,
             interval=interval,
             limit=limit,
@@ -244,7 +241,7 @@ class EasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
-        request_params = build_risk_limit_params(symbol=symbol, params=params)
+        request_params = build_ticker_params(symbol=symbol, params=params)
         return self._request("GET", self._resolve_endpoint("risk_limit", path), params=request_params)
 
     def get_market_close_time(self, *, path: str | None = None) -> Any:
@@ -471,7 +468,7 @@ class EasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        body = build_position_payload(payload)
         return self._private_write(
             "POST",
             self._resolve_endpoint("set_leverage", path),
@@ -486,7 +483,7 @@ class EasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        body = build_position_payload(payload)
         return self._private_write(
             "POST",
             self._resolve_endpoint("add_margin", path),
@@ -501,7 +498,7 @@ class EasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload or {})
+        body = build_position_payload(payload or {})
         return self._private_write(
             "POST",
             self._resolve_endpoint("close_all_positions", path),
@@ -514,22 +511,24 @@ class EasiFluxSDK:
         *,
         symbol: str | None = None,
         coin: str | None = None,
-        start_time: int | None = None,
-        end_time: int | None = None,
+        start_time: str | int | None = None,
+        end_time: str | int | None = None,
         limit: int | None = None,
         cursor: str | None = None,
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
-        request_params = build_closed_pnl_params(
+        request_params = build_order_query_params(
             symbol=symbol,
             coin=coin,
-            start_time=start_time,
-            end_time=end_time,
             limit=limit,
             cursor=cursor,
             params=params,
         )
+        if start_time is not None:
+            request_params["start_time"] = start_time
+        if end_time is not None:
+            request_params["end_time"] = end_time
         return self._signed_request(
             "GET",
             self._resolve_endpoint("closed_pnl", path),
@@ -543,7 +542,7 @@ class EasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        body = build_position_payload(payload)
         return self._private_write(
             "POST",
             self._resolve_endpoint("create_tpsl", path),
@@ -558,7 +557,7 @@ class EasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        body = build_position_payload(payload)
         return self._private_write(
             "POST",
             self._resolve_endpoint("replace_tpsl", path),
@@ -573,7 +572,7 @@ class EasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        body = build_position_payload(payload)
         return self._private_write(
             "POST",
             self._resolve_endpoint("switch_margin_mode", path),
@@ -588,10 +587,10 @@ class EasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        body = build_position_payload(payload)
         return self._private_write(
             "POST",
-            self._resolve_endpoint("switch_separate_mode", path),
+            self._resolve_endpoint("switch_separate_position_mode", path),
             payload=body,
             use_json=use_json,
         )
@@ -609,6 +608,34 @@ class EasiFluxSDK:
 
     def get_funding_balances(self, *, path: str | None = None) -> Any:
         return self._signed_request("GET", self._resolve_endpoint("funding_balances", path))
+
+    def get_user_id(self, *, path: str | None = None) -> Any:
+        return self._signed_request("GET", self._resolve_endpoint("user_id", path))
+
+    def get_transfer_history(
+        self,
+        *,
+        start_time: int,
+        end_time: int,
+        coin: str | None = None,
+        page_num: int | None = None,
+        page_size: int | None = None,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        request_params = build_transfer_history_params(
+            start_time=start_time,
+            end_time=end_time,
+            coin=coin,
+            page_num=page_num,
+            page_size=page_size,
+            params=params,
+        )
+        return self._signed_request(
+            "GET",
+            self._resolve_endpoint("transfer_history", path),
+            params=request_params,
+        )
 
     def transfer_between_accounts(
         self,
@@ -642,34 +669,6 @@ class EasiFluxSDK:
     ) -> Any:
         request_params = build_fiat_rate_params(symbol_list=symbol_list, params=params)
         return self._request("GET", self._resolve_endpoint("fiat_rate", path), params=request_params)
-
-    def get_user_id(self, *, path: str | None = None) -> Any:
-        return self._signed_request("GET", self._resolve_endpoint("user_id", path))
-
-    def get_transfer_history(
-        self,
-        *,
-        start_time: int,
-        end_time: int,
-        coin: str | None = None,
-        page_num: int | None = None,
-        page_size: int | None = None,
-        path: str | None = None,
-        params: Mapping[str, Any] | None = None,
-    ) -> Any:
-        request_params = build_transfer_history_params(
-            start_time=start_time,
-            end_time=end_time,
-            coin=coin,
-            page_num=page_num,
-            page_size=page_size,
-            params=params,
-        )
-        return self._signed_request(
-            "GET",
-            self._resolve_endpoint("transfer_history", path),
-            params=request_params,
-        )
 
     def private_request(
         self,

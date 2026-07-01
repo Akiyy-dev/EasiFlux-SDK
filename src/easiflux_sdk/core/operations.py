@@ -6,12 +6,6 @@ from typing import Any
 from .serialization import clean_mapping
 
 
-def _payload_from(value: Mapping[str, Any] | Any) -> dict[str, Any]:
-    if hasattr(value, "to_api_payload"):
-        return clean_mapping(value.to_api_payload())
-    return clean_mapping(value)
-
-
 def build_ticker_params(
     *,
     symbol: str | None = None,
@@ -47,25 +41,6 @@ def build_kline_params(
     if end_time is not None:
         request_params["end"] = end_time
     return request_params
-
-
-def build_mark_price_kline_params(
-    *,
-    symbol: str,
-    interval: str,
-    limit: int | None = None,
-    start: int | None = None,
-    end: int | None = None,
-    params: Mapping[str, Any] | None = None,
-) -> dict[str, Any]:
-    return build_kline_params(
-        symbol=symbol,
-        interval=interval,
-        limit=limit,
-        start=start,
-        end=end,
-        params=params,
-    )
 
 
 def build_depth_params(
@@ -127,16 +102,6 @@ def build_instruments_params(
     return request_params
 
 
-def build_risk_limit_params(
-    *,
-    symbol: str,
-    params: Mapping[str, Any] | None = None,
-) -> dict[str, Any]:
-    request_params = dict(params or {})
-    request_params["symbol"] = symbol
-    return request_params
-
-
 def build_order_query_params(
     *,
     symbol: str | None = None,
@@ -172,32 +137,6 @@ def build_order_query_params(
         request_params["end_time"] = end_time
     if exec_type is not None:
         request_params["exec_type"] = exec_type
-    return request_params
-
-
-def build_closed_pnl_params(
-    *,
-    symbol: str | None = None,
-    coin: str | None = None,
-    start_time: int | None = None,
-    end_time: int | None = None,
-    limit: int | None = None,
-    cursor: str | None = None,
-    params: Mapping[str, Any] | None = None,
-) -> dict[str, Any]:
-    request_params = dict(params or {})
-    if symbol is not None:
-        request_params["symbol"] = symbol
-    if coin is not None:
-        request_params["coin"] = coin
-    if start_time is not None:
-        request_params["start_time"] = start_time
-    if end_time is not None:
-        request_params["end_time"] = end_time
-    if limit is not None:
-        request_params["limit"] = limit
-    if cursor is not None:
-        request_params["cursor"] = cursor
     return request_params
 
 
@@ -255,21 +194,27 @@ def build_transfer_payload(
     return payload
 
 
+def _payload_from_mapping_or_model(value: Mapping[str, Any] | Any) -> dict[str, Any]:
+    if hasattr(value, "to_api_payload"):
+        return clean_mapping(value.to_api_payload())
+    return clean_mapping(value)
+
+
 def build_create_order_payload(order: Mapping[str, Any] | Any) -> dict[str, Any]:
-    return _payload_from(order)
+    return _payload_from_mapping_or_model(order)
 
 
 def build_cancel_order_payload(order_query: Mapping[str, Any] | Any) -> dict[str, Any]:
-    return _payload_from(order_query)
+    return _payload_from_mapping_or_model(order_query)
 
 
 def build_replace_order_payload(order: Mapping[str, Any] | Any) -> dict[str, Any]:
-    return _payload_from(order)
+    return _payload_from_mapping_or_model(order)
 
 
 def build_cancel_all_orders_payload(query: Mapping[str, Any] | Any) -> dict[str, Any]:
-    return _payload_from(query)
+    return _payload_from_mapping_or_model(query)
 
 
-def build_position_write_payload(payload: Mapping[str, Any] | Any) -> dict[str, Any]:
-    return _payload_from(payload)
+def build_position_payload(payload: Mapping[str, Any] | Any) -> dict[str, Any]:
+    return _payload_from_mapping_or_model(payload)

@@ -8,27 +8,29 @@ from easiflux_sdk.core.events import EventEmitter
 from easiflux_sdk.core.response_handler import ResponseHandler
 from easiflux_sdk.core.time_sync import TimeSyncManager
 from easiflux_sdk.websocket.manager import WebSocketManager
-from easiflux_sdk.websocket.private import build_private_auth_message, resolve_private_topic
+from easiflux_sdk.websocket.private import build_private_auth_message
 from easiflux_sdk.websocket.public import (
-    build_depth_topic,
     build_ping_message,
-    build_public_subscribe_from_channel,
-    build_public_subscribe_message,
-    build_ticker_topic,
+    build_subscribe_message,
+    topic_candle,
+    topic_depth,
+    topic_ticker,
+    topic_trades,
 )
 from easiflux_sdk.websocket.reconnect import ReconnectPolicy
 
 
-def test_build_public_subscribe_message() -> None:
-    message = build_public_subscribe_message(build_ticker_topic("BTCUSDT"))
+def test_build_subscribe_message() -> None:
+    message = build_subscribe_message("tickers-100.BTCUSDT")
 
     assert message == {"op": "subscribe", "args": ["tickers-100.BTCUSDT"]}
 
 
-def test_build_public_subscribe_from_channel() -> None:
-    message = build_public_subscribe_from_channel("depth", {"symbol": "BTCUSDT", "tick": 1})
-
-    assert message["args"] == [build_depth_topic("BTCUSDT", tick=1)]
+def test_topic_helpers() -> None:
+    assert topic_ticker("BTCUSDT") == "tickers-100.BTCUSDT"
+    assert topic_depth("BTCUSDT", 1) == "ob_snap_shot.BTCUSDT.1"
+    assert topic_candle("BTCUSDT", "60") == "candle.60.BTCUSDT"
+    assert topic_trades("BTCUSDT") == "trades-100.BTCUSDT"
 
 
 def test_build_ping_message() -> None:
@@ -36,27 +38,28 @@ def test_build_ping_message() -> None:
 
 
 def test_build_private_auth_message() -> None:
-    signer = Signer("key", "secret", AuthConfig(), 5000, lambda: 1)
-    message = build_private_auth_message(signer=signer, expires_ms=1234567890)
+    handler = ResponseHandler(ResponseConfig())
+    time_sync = TimeSyncManager(handler)
+    signer = Signer("key", "secret", AuthConfig(), 5000, time_sync.get_timestamp)
+
+    message = build_private_auth_message(signer=signer, expires_ms=1662350400000)
 
     assert message["op"] == "auth"
     assert message["args"][0] == "key"
-    assert message["args"][1] == 1234567890
+    assert message["args"][1] == 1662350400000
     assert isinstance(message["args"][2], str)
-
-
-def test_resolve_private_topic_aliases_balance() -> None:
-    assert resolve_private_topic("balance") == "contract.wallet"
+    assert len(message["args"][2]) == 64
 
 
 def test_reconnect_policy_backoff_caps_at_max() -> None:
     policy = ReconnectPolicy(backoff_factor=2.0, max_backoff=10.0)
 
     assert policy.backoff_delay(10) == 10.0
+    assert policy.heartbeat_interval == 15.0
 
 
 @pytest.mark.asyncio
-async def test_websocket_manager_dispatches_event() -> None:
+async def test_websocket_manager_dispatches_topic_event() -> None:
     events = EventEmitter()
     received: list[str] = []
 

@@ -34,7 +34,7 @@ DEFAULT_ENDPOINTS: dict[str, str] = {
     "create_tpsl": "/futures/private/v1/position/create-tpsl",
     "replace_tpsl": "/futures/private/v1/position/replace-tpsl",
     "switch_margin_mode": "/futures/private/v1/position/switch-margin-mode",
-    "switch_separate_mode": "/futures/private/v1/position/switch-separate-mode",
+    "switch_separate_position_mode": "/futures/private/v1/position/switch-separate-mode",
     "funding_balances": "/asset-api/account/private/v1/get-funding-account-balance",
     "funding_transfer": "/asset-api/account/private/v1/user-account-transfer",
     "user_id": "/asset-api/account/private/v1/userid",

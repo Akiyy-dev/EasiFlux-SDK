@@ -1,6 +1,6 @@
 # EasiFlux SDK
 
-EasiFlux SDK（`easiflux_sdk`）是为量化交易与桌面客户端准备的 Python SDK，封装 [EasiCoin](https://api.easicoin.io) 交易所 REST / WebSocket API。官方 API 文档：[EasiCoin Open API Documentation](https://www.easicoin.io/api-doc/zh-CN/common/Info)。v0.2 起包名、主 Client 类名已统一为 **EasiFlux** 系列；旧名 `easicoin_sdk` 仅作兼容 shim。
+EasiFlux SDK（`easiflux_sdk`）是为量化交易与桌面客户端准备的 Python SDK，封装 [EasiCoin](https://api.easicoin.io) 交易所 REST / WebSocket API。官方 API 文档：[https://www.easicoin.io/api-doc/zh-CN/common/Info](https://www.easicoin.io/api-doc/zh-CN/common/Info)。v0.2 起包名、主 Client 类名已统一为 **EasiFlux** 系列；旧名 `easicoin_sdk` 仅作兼容 shim。
 
 ## 命名规范
 
@@ -29,14 +29,14 @@ from easicoin_sdk import EasiCoinSDK  # = EasiFluxSDK
 - 已实现异常体系、会话复用、重试和超时控制
 - 已内置官方 Base URL、默认端点和认证请求头
 
-### v0.3 新增（对齐官方 Open API 文档）
+### v0.3 新增
 
-- **REST 扩展**：公共成交、资金费率历史、标记价格 K 线、合约信息、风险限额、休市时间；撤全部单、改单、成交明细；杠杆/保证金/止盈止损/分仓模式等仓位接口；用户 ID 与划转历史
-- **Async 对等**：`AsyncEasiFluxSDK` 现已覆盖与同步客户端相同的全部高层方法
-- **WebSocket 对齐官方协议**：
-  - 公共：`wss://ws.easicoin.io/contract/public/v1`
-  - 私有：`wss://ws.easicoin.io/contract/private/v1`
-  - topic 订阅（如 `tickers-100.BTCUSDT`、`contract.order`）与 `{"op":"ping"}` 心跳
+- **官方文档对齐**：REST 端点与 [EasiCoin Open API 文档](https://www.easicoin.io/api-doc/zh-CN/common/Info) 同步
+- **新增公共行情**：`get_public_trades`、`get_funding_rate_history`、`get_mark_price_kline`、`get_instruments`、`get_risk_limit`、`get_market_close_time`
+- **新增订单/仓位**：`cancel_all_orders`、`replace_order`、`get_trade_fills`、杠杆/保证金/止盈止损/合仓分仓等仓位接口
+- **新增资金账户**：`get_user_id`、`get_transfer_history`
+- **Async 对等**：`AsyncEasiFluxSDK` 现已覆盖全部同步 REST 方法
+- **WebSocket 重写**：公共/私有双连接（`wss://ws.easicoin.io/contract/public/v1` / `private/v1`）、官方 topic 订阅、`15s` ping 心跳
 
 ### v0.2 新增
 
@@ -153,6 +153,7 @@ async def main() -> None:
             order_type=OrderType.LIMIT,
             qty="0.001",
             price="50000",
+            position_idx=1,
         )
         result = await client.create_order(order)
 
@@ -172,6 +173,7 @@ order = OrderRequest(
     order_type=OrderType.LIMIT,
     qty="0.001",
     price="60000",
+    position_idx=1,
     time_in_force=TimeInForce.GOOD_TILL_CANCEL,
 )
 sdk.create_order(order)  # 仍支持 dict 入参
@@ -195,26 +197,41 @@ sdk.create_order(order)  # 仍支持 dict 入参
 
 ### 3. 已内置的默认端点
 
-完整列表见 [官方文档 sitemap](https://www.easicoin.io/api-doc/sitemap.xml)。SDK 默认内置：
+完整列表见 [官方 API 文档](https://www.easicoin.io/api-doc/zh-CN/common/Info)。主要路径包括：
 
-- 合约公共: `time`, `tickers`, `kline`, `order-book`, `trades`, `funding-rate-history`, `mark-price-kline`, `instruments`, `position-risk-limit`, `market-close-time`
-- 合约私有: 账户/订单/持仓全套接口（含 `cancel-all-orders`, `replace-order`, `trade/fills`, `position/set-leverage` 等）
-- 资金: `get-funding-account-balance`, `user-account-transfer`, `userid`, `user-transfer-rercord/page`, `fiat/rate`
+- 合约公共: `/futures/public/v1/market/*`、`/futures/public/v1/instruments`、`/futures/public/v1/position-risk-limit`
+- 合约私有: 订单（`create-order`、`replace-order`、`cancel-all-orders`、`trade/fills` 等）、仓位（`set-leverage`、`create-tpsl` 等）、账户
+- 资金: `get-funding-account-balance`、`user-account-transfer`、`userid`、`user-transfer-rercord/page`
+- 法币汇率: `/asset-api/fiat/public/v1/rate`
 
 ## 当前支持的方法
 
-同步与异步客户端均支持：
+同步与异步 Client 均支持以下方法：
 
-- `get_server_time()`, `get_ticker()`, `get_kline()`, `get_depth()`
-- `get_public_trades()`, `get_funding_rate_history()`, `get_mark_price_kline()`
-- `get_instruments()`, `get_risk_limit()`, `get_market_close_time()`
-- `get_trading_fee_rate()`, `get_balances()`, `get_positions()`
-- `create_order()`, `cancel_order()`, `cancel_all_orders()`, `replace_order()`
-- `get_order()` / `get_open_orders()`, `get_orders()`, `get_trade_fills()`
-- `set_leverage()`, `add_margin()`, `close_all_positions()`, `get_closed_pnl()`
-- `create_tpsl()`, `replace_tpsl()`, `switch_margin_mode()`, `switch_separate_position_mode()`
-- `get_funding_balances()`, `transfer_between_accounts()`, `get_user_id()`, `get_transfer_history()`
+- `get_server_time()`、`get_ticker()`、`get_kline()`、`get_depth()`
+- `get_public_trades()`、`get_funding_rate_history()`、`get_mark_price_kline()`
+- `get_instruments()`、`get_risk_limit()`、`get_market_close_time()`
+- `get_trading_fee_rate()`、`get_balances()`、`get_positions()`
+- `create_order()`、`cancel_order()`、`cancel_all_orders()`、`replace_order()`
+- `get_order()` / `get_open_orders()`、`get_orders()`、`get_trade_fills()`
+- `set_leverage()`、`add_margin()`、`close_all_positions()`、`get_closed_pnl()`
+- `create_tpsl()`、`replace_tpsl()`、`switch_margin_mode()`、`switch_separate_position_mode()`
+- `get_funding_balances()`、`transfer_between_accounts()`、`get_user_id()`、`get_transfer_history()`
 - `get_fiat_rate()`
+
+### WebSocket（Async Client）
+
+```python
+async with AsyncEasiFluxSDK(api_key="...", api_secret="...") as client:
+    await client.ws.subscribe_ticker("BTCUSDT")
+    await client.ws.subscribe_position()  # 私有频道，自动鉴权
+
+    @client.on("order")
+    async def on_order(event: dict) -> None:
+        print(event)
+```
+
+旧版 `subscribe("ticker", {"symbol": "..."})` 仍可用但会触发 `DeprecationWarning`；推荐直接使用 `subscribe_ticker` / `subscribe_topic`。
 
 ## CI / Release
 
@@ -226,5 +243,5 @@ sdk.create_order(order)  # 仍支持 dict 入参
 
 ## 未完成部分
 
-- 现货 / 大宗交易 REST 尚未在官方 Open API 文档中提供，SDK 暂未封装
+- 现货 / 大宗交易 REST 尚未封装（官方文档当前仅提供 WS URL）
 - 目前没有真实账户联调测试，建议先用只读接口和测试仓位做烟雾验证

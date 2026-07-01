@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, fields
 from typing import Any
 
-from .enums import OrderSide, OrderType, StopOrderType, TimeInForce, TriggerBy
+from .enums import OrderSide, OrderType, StopOrderType, TimeInForce
 
 
-def _optional_enum_value(value: object | None) -> object | None:
+def _enum_value(value: object | None) -> object | None:
     if value is None:
         return None
     if hasattr(value, "value"):
@@ -19,17 +19,17 @@ class OrderRequest:
     symbol: str
     side: OrderSide
     qty: str
+    position_idx: int
     order_type: OrderType | None = None
     price: str | None = None
-    position_idx: int | None = None
     time_in_force: TimeInForce | None = None
     order_link_id: str | None = None
-    stop_order_type: StopOrderType | None = None
-    trigger_by: TriggerBy | str | None = None
+    stop_order_type: StopOrderType | str | None = None
+    trigger_by: str | None = None
     trigger_price: str | None = None
-    tp_trigger_by: TriggerBy | str | None = None
+    tp_trigger_by: str | None = None
     take_profit: str | None = None
-    sl_trigger_by: TriggerBy | str | None = None
+    sl_trigger_by: str | None = None
     stop_loss: str | None = None
     reduce_only: bool | None = None
     pz_link_id: str | None = None
@@ -37,37 +37,28 @@ class OrderRequest:
     def to_api_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "symbol": self.symbol,
-            "side": self.side.value,
+            "side": _enum_value(self.side),
             "qty": self.qty,
+            "position_idx": self.position_idx,
         }
-        if self.order_type is not None:
-            payload["order_type"] = self.order_type.value
-        if self.price is not None:
-            payload["price"] = self.price
-        if self.position_idx is not None:
-            payload["position_idx"] = self.position_idx
-        if self.time_in_force is not None:
-            payload["time_in_force"] = self.time_in_force.value
-        if self.order_link_id is not None:
-            payload["order_link_id"] = self.order_link_id
-        if self.stop_order_type is not None:
-            payload["stop_order_type"] = self.stop_order_type.value
-        if self.trigger_by is not None:
-            payload["trigger_by"] = _optional_enum_value(self.trigger_by)
-        if self.trigger_price is not None:
-            payload["trigger_price"] = self.trigger_price
-        if self.tp_trigger_by is not None:
-            payload["tp_trigger_by"] = _optional_enum_value(self.tp_trigger_by)
-        if self.take_profit is not None:
-            payload["take_profit"] = self.take_profit
-        if self.sl_trigger_by is not None:
-            payload["sl_trigger_by"] = _optional_enum_value(self.sl_trigger_by)
-        if self.stop_loss is not None:
-            payload["stop_loss"] = self.stop_loss
-        if self.reduce_only is not None:
-            payload["reduce_only"] = self.reduce_only
-        if self.pz_link_id is not None:
-            payload["pz_link_id"] = self.pz_link_id
+        optional_fields: dict[str, object | None] = {
+            "order_type": _enum_value(self.order_type),
+            "price": self.price,
+            "time_in_force": _enum_value(self.time_in_force),
+            "order_link_id": self.order_link_id,
+            "stop_order_type": _enum_value(self.stop_order_type),
+            "trigger_by": self.trigger_by,
+            "trigger_price": self.trigger_price,
+            "tp_trigger_by": self.tp_trigger_by,
+            "take_profit": self.take_profit,
+            "sl_trigger_by": self.sl_trigger_by,
+            "stop_loss": self.stop_loss,
+            "reduce_only": self.reduce_only,
+            "pz_link_id": self.pz_link_id,
+        }
+        for key, value in optional_fields.items():
+            if value is not None:
+                payload[key] = value
         return payload
 
     @classmethod
@@ -76,12 +67,12 @@ class OrderRequest:
             symbol=str(data["symbol"]),
             side=OrderSide(data["side"]),
             qty=str(data["qty"]),
+            position_idx=int(data["position_idx"]),
             order_type=OrderType(data["order_type"]) if data.get("order_type") else None,
             price=str(data["price"]) if data.get("price") is not None else None,
-            position_idx=int(data["position_idx"]) if data.get("position_idx") is not None else None,
             time_in_force=TimeInForce(data["time_in_force"]) if data.get("time_in_force") else None,
             order_link_id=str(data["order_link_id"]) if data.get("order_link_id") else None,
-            stop_order_type=StopOrderType(data["stop_order_type"]) if data.get("stop_order_type") else None,
+            stop_order_type=data.get("stop_order_type"),
             trigger_by=data.get("trigger_by"),
             trigger_price=str(data["trigger_price"]) if data.get("trigger_price") is not None else None,
             tp_trigger_by=data.get("tp_trigger_by"),
@@ -133,34 +124,29 @@ class ReplaceOrderRequest:
     price: str | None = None
     qty: str | None = None
     trigger_price: str | None = None
-    trigger_by: TriggerBy | str | None = None
+    trigger_by: str | None = None
     take_profit: str | None = None
     stop_loss: str | None = None
-    tp_trigger_by: TriggerBy | str | None = None
-    sl_trigger_by: TriggerBy | str | None = None
+    tp_trigger_by: str | None = None
+    sl_trigger_by: str | None = None
 
     def to_api_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {"symbol": self.symbol}
-        if self.order_id is not None:
-            payload["order_id"] = self.order_id
-        if self.order_link_id is not None:
-            payload["order_link_id"] = self.order_link_id
-        if self.price is not None:
-            payload["price"] = self.price
-        if self.qty is not None:
-            payload["qty"] = self.qty
-        if self.trigger_price is not None:
-            payload["trigger_price"] = self.trigger_price
-        if self.trigger_by is not None:
-            payload["trigger_by"] = _optional_enum_value(self.trigger_by)
-        if self.take_profit is not None:
-            payload["take_profit"] = self.take_profit
-        if self.stop_loss is not None:
-            payload["stop_loss"] = self.stop_loss
-        if self.tp_trigger_by is not None:
-            payload["tp_trigger_by"] = _optional_enum_value(self.tp_trigger_by)
-        if self.sl_trigger_by is not None:
-            payload["sl_trigger_by"] = _optional_enum_value(self.sl_trigger_by)
+        optional_fields: dict[str, object | None] = {
+            "order_id": self.order_id,
+            "order_link_id": self.order_link_id,
+            "price": self.price,
+            "qty": self.qty,
+            "trigger_price": self.trigger_price,
+            "trigger_by": self.trigger_by,
+            "take_profit": self.take_profit,
+            "stop_loss": self.stop_loss,
+            "tp_trigger_by": self.tp_trigger_by,
+            "sl_trigger_by": self.sl_trigger_by,
+        }
+        for key, value in optional_fields.items():
+            if value is not None:
+                payload[key] = value
         return payload
 
 

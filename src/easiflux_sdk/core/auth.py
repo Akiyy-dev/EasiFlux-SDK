@@ -84,6 +84,7 @@ class Signer:
         return digest.hex()
 
     def sign_ws_auth(self, expires_ms: int) -> str:
+        """Sign WebSocket private-channel auth payload (GET/realtime{expires})."""
         self.ensure_credentials()
         return self.sign(f"GET/realtime{expires_ms}")
 

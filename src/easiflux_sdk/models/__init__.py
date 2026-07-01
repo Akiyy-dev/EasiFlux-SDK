@@ -8,7 +8,6 @@ from .enums import (
     StopOrderType,
     TimeInForce,
     TpSlMode,
-    TriggerBy,
 )
 from .market import ServerTime, Ticker
 from .order import (
@@ -55,5 +54,4 @@ __all__ = [
     "TimeInForce",
     "TpSlMode",
     "TransferRequest",
-    "TriggerBy",
 ]

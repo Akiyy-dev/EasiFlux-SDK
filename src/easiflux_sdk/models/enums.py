@@ -24,11 +24,6 @@ class StopOrderType(str, Enum):
     STOP = "Stop"
 
 
-class TriggerBy(str, Enum):
-    LAST_PRICE = "LastPrice"
-    MARK_PRICE = "MarkPrice"
-
-
 class ExecType(str, Enum):
     TRADE = "Trade"
     ADL_TRADE = "AdlTrade"

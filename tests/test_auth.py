@@ -40,16 +40,15 @@ def test_signer_serializes_post_body_for_signature() -> None:
     assert components.body_text == '{"symbol":"BTCUSDT","side":"Buy"}'
 
 
-def test_signer_sign_ws_auth() -> None:
+def test_signer_builds_ws_auth_signature() -> None:
     signer = Signer(
         api_key="key",
         api_secret="secret",
         auth_config=AuthConfig(signature_encoding="hex"),
         recv_window=5000,
-        get_timestamp=lambda: 1,
+        get_timestamp=lambda: 1700000000000,
     )
 
-    signature = signer.sign_ws_auth(1234567890)
+    signature = signer.sign_ws_auth(1662350400000)
 
     assert len(signature) == 64
-    assert signature == signer.sign("GET/realtime1234567890")

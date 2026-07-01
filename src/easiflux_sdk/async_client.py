@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 from urllib.parse import urljoin
@@ -12,19 +13,16 @@ from .core.events import EventEmitter
 from .core.operations import (
     build_cancel_all_orders_payload,
     build_cancel_order_payload,
-    build_closed_pnl_params,
     build_create_order_payload,
     build_depth_params,
     build_fiat_rate_params,
     build_funding_rate_history_params,
     build_instruments_params,
     build_kline_params,
-    build_mark_price_kline_params,
     build_order_query_params,
-    build_position_write_payload,
+    build_position_payload,
     build_public_trades_params,
     build_replace_order_payload,
-    build_risk_limit_params,
     build_ticker_params,
     build_transfer_history_params,
     build_transfer_payload,
@@ -97,10 +95,17 @@ class AsyncEasiFluxSDK:
         )
         self._transport = transport or HttpxAsyncTransport(client=client)
         self.events = EventEmitter()
+        if ws_url is not None:
+            warnings.warn(
+                "ws_url is deprecated; use ws_public_url and ws_private_url instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        public_url = ws_public_url or ws_url or DEFAULT_WS_URLS["contract_public"]
+        private_url = ws_private_url or DEFAULT_WS_URLS["contract_private"]
         self.ws = WebSocketManager(
-            ws_public_url=ws_public_url or DEFAULT_WS_URLS["contract_public"],
-            ws_private_url=ws_private_url or DEFAULT_WS_URLS["contract_private"],
-            ws_url=ws_url,
+            ws_public_url=public_url,
+            ws_private_url=private_url,
             api_key=api_key,
             api_secret=api_secret,
             auth_config=self.auth_config,
@@ -167,6 +172,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_kline_params(
             symbol=symbol,
             interval=interval,
@@ -188,6 +194,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_depth_params(symbol=symbol, depth=depth, limit=limit, params=params)
         return await self._request("GET", self._resolve_endpoint("depth", path), params=request_params)
 
@@ -199,8 +206,13 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_public_trades_params(symbol=symbol, limit=limit, params=params)
-        return await self._request("GET", self._resolve_endpoint("public_trades", path), params=request_params)
+        return await self._request(
+            "GET",
+            self._resolve_endpoint("public_trades", path),
+            params=request_params,
+        )
 
     async def get_funding_rate_history(
         self,
@@ -212,6 +224,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_funding_rate_history_params(
             symbol=symbol,
             from_time=from_time,
@@ -236,7 +249,8 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
-        request_params = build_mark_price_kline_params(
+        await self._ensure_init_sync()
+        request_params = build_kline_params(
             symbol=symbol,
             interval=interval,
             limit=limit,
@@ -257,6 +271,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_instruments_params(symbol=symbol, params=params)
         return await self._request("GET", self._resolve_endpoint("instruments", path), params=request_params)
 
@@ -267,10 +282,12 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
-        request_params = build_risk_limit_params(symbol=symbol, params=params)
+        await self._ensure_init_sync()
+        request_params = build_ticker_params(symbol=symbol, params=params)
         return await self._request("GET", self._resolve_endpoint("risk_limit", path), params=request_params)
 
     async def get_market_close_time(self, *, path: str | None = None) -> Any:
+        await self._ensure_init_sync()
         return await self._request("GET", self._resolve_endpoint("market_close_time", path))
 
     async def get_trading_fee_rate(
@@ -281,8 +298,13 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_order_query_params(symbol=symbol, coin=coin, params=params)
-        return await self._signed_request("GET", self._resolve_endpoint("fee_rate", path), params=request_params)
+        return await self._signed_request(
+            "GET",
+            self._resolve_endpoint("fee_rate", path),
+            params=request_params,
+        )
 
     async def create_order(
         self,
@@ -291,6 +313,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
+        await self._ensure_init_sync()
         payload = build_create_order_payload(order)
         return await self._private_write(
             "POST",
@@ -306,6 +329,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
+        await self._ensure_init_sync()
         payload = build_cancel_order_payload(order_query)
         return await self._private_write(
             "POST",
@@ -321,6 +345,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
+        await self._ensure_init_sync()
         payload = build_cancel_all_orders_payload(order_query)
         return await self._private_write(
             "POST",
@@ -336,6 +361,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
+        await self._ensure_init_sync()
         payload = build_replace_order_payload(order)
         return await self._private_write(
             "POST",
@@ -357,6 +383,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_order_query_params(
             symbol=symbol,
             coin=coin,
@@ -411,6 +438,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_order_query_params(
             symbol=symbol,
             coin=coin,
@@ -441,6 +469,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_order_query_params(
             symbol=symbol,
             coin=coin,
@@ -465,6 +494,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_order_query_params(coin=coin, params=params)
         return await self._signed_request(
             "GET",
@@ -480,6 +510,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_order_query_params(symbol=symbol, coin=coin, params=params)
         return await self._signed_request(
             "GET",
@@ -494,7 +525,8 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        await self._ensure_init_sync()
+        body = build_position_payload(payload)
         return await self._private_write(
             "POST",
             self._resolve_endpoint("set_leverage", path),
@@ -509,7 +541,8 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        await self._ensure_init_sync()
+        body = build_position_payload(payload)
         return await self._private_write(
             "POST",
             self._resolve_endpoint("add_margin", path),
@@ -524,7 +557,8 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload or {})
+        await self._ensure_init_sync()
+        body = build_position_payload(payload or {})
         return await self._private_write(
             "POST",
             self._resolve_endpoint("close_all_positions", path),
@@ -537,22 +571,25 @@ class AsyncEasiFluxSDK:
         *,
         symbol: str | None = None,
         coin: str | None = None,
-        start_time: int | None = None,
-        end_time: int | None = None,
+        start_time: str | int | None = None,
+        end_time: str | int | None = None,
         limit: int | None = None,
         cursor: str | None = None,
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
-        request_params = build_closed_pnl_params(
+        await self._ensure_init_sync()
+        request_params = build_order_query_params(
             symbol=symbol,
             coin=coin,
-            start_time=start_time,
-            end_time=end_time,
             limit=limit,
             cursor=cursor,
             params=params,
         )
+        if start_time is not None:
+            request_params["start_time"] = start_time
+        if end_time is not None:
+            request_params["end_time"] = end_time
         return await self._signed_request(
             "GET",
             self._resolve_endpoint("closed_pnl", path),
@@ -566,7 +603,8 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        await self._ensure_init_sync()
+        body = build_position_payload(payload)
         return await self._private_write(
             "POST",
             self._resolve_endpoint("create_tpsl", path),
@@ -581,7 +619,8 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        await self._ensure_init_sync()
+        body = build_position_payload(payload)
         return await self._private_write(
             "POST",
             self._resolve_endpoint("replace_tpsl", path),
@@ -596,7 +635,8 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        await self._ensure_init_sync()
+        body = build_position_payload(payload)
         return await self._private_write(
             "POST",
             self._resolve_endpoint("switch_margin_mode", path),
@@ -611,27 +651,48 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         use_json: bool = True,
     ) -> Any:
-        body = build_position_write_payload(payload)
+        await self._ensure_init_sync()
+        body = build_position_payload(payload)
         return await self._private_write(
             "POST",
-            self._resolve_endpoint("switch_separate_mode", path),
+            self._resolve_endpoint("switch_separate_position_mode", path),
             payload=body,
             use_json=use_json,
         )
 
-    async def public_request(
-        self,
-        method: str,
-        path: str,
-        *,
-        params: Mapping[str, Any] | None = None,
-        json_body: Mapping[str, Any] | None = None,
-        headers: Mapping[str, str] | None = None,
-    ) -> Any:
-        return await self._request(method, path, params=params, json_body=json_body, headers=headers)
-
     async def get_funding_balances(self, *, path: str | None = None) -> Any:
+        await self._ensure_init_sync()
         return await self._signed_request("GET", self._resolve_endpoint("funding_balances", path))
+
+    async def get_user_id(self, *, path: str | None = None) -> Any:
+        await self._ensure_init_sync()
+        return await self._signed_request("GET", self._resolve_endpoint("user_id", path))
+
+    async def get_transfer_history(
+        self,
+        *,
+        start_time: int,
+        end_time: int,
+        coin: str | None = None,
+        page_num: int | None = None,
+        page_size: int | None = None,
+        path: str | None = None,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any:
+        await self._ensure_init_sync()
+        request_params = build_transfer_history_params(
+            start_time=start_time,
+            end_time=end_time,
+            coin=coin,
+            page_num=page_num,
+            page_size=page_size,
+            params=params,
+        )
+        return await self._signed_request(
+            "GET",
+            self._resolve_endpoint("transfer_history", path),
+            params=request_params,
+        )
 
     async def transfer_between_accounts(
         self,
@@ -643,6 +704,7 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         extra_payload: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         payload = build_transfer_payload(
             amount=amount,
             coin=coin,
@@ -663,36 +725,20 @@ class AsyncEasiFluxSDK:
         path: str | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        await self._ensure_init_sync()
         request_params = build_fiat_rate_params(symbol_list=symbol_list, params=params)
         return await self._request("GET", self._resolve_endpoint("fiat_rate", path), params=request_params)
 
-    async def get_user_id(self, *, path: str | None = None) -> Any:
-        return await self._signed_request("GET", self._resolve_endpoint("user_id", path))
-
-    async def get_transfer_history(
+    async def public_request(
         self,
+        method: str,
+        path: str,
         *,
-        start_time: int,
-        end_time: int,
-        coin: str | None = None,
-        page_num: int | None = None,
-        page_size: int | None = None,
-        path: str | None = None,
         params: Mapping[str, Any] | None = None,
+        json_body: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> Any:
-        request_params = build_transfer_history_params(
-            start_time=start_time,
-            end_time=end_time,
-            coin=coin,
-            page_num=page_num,
-            page_size=page_size,
-            params=params,
-        )
-        return await self._signed_request(
-            "GET",
-            self._resolve_endpoint("transfer_history", path),
-            params=request_params,
-        )
+        return await self._request(method, path, params=params, json_body=json_body, headers=headers)
 
     async def private_request(
         self,

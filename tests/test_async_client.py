@@ -40,8 +40,23 @@ async def test_async_create_order_with_model() -> None:
             order_type=OrderType.LIMIT,
             qty="0.001",
             price="50000",
+            position_idx=1,
         )
         response = await client.create_order(request)
+
+    assert route.called
+    assert response["code"] == 0
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_async_get_instruments() -> None:
+    route = respx.get("https://api.easicoin.io/futures/public/v1/instruments").mock(
+        return_value=httpx.Response(200, json={"code": 0, "data": {"list": []}})
+    )
+
+    async with AsyncEasiFluxSDK(sync_on_init=False) as client:
+        response = await client.get_instruments(symbol="BTCUSDT")
 
     assert route.called
     assert response["code"] == 0
